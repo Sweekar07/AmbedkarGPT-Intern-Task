@@ -31,7 +31,7 @@ def split_into_chunks(text):
 # -------------------------------------------------------
 # 3. Initialize Embeddings + Chroma Vector Store
 # -------------------------------------------------------
-def create_vectorstore(chunks, persist_dir="chroma_db"):
+def create_vectorstore(persist_dir="chroma_db"):
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     
     vector_store = Chroma(
@@ -45,6 +45,8 @@ def create_vectorstore(chunks, persist_dir="chroma_db"):
     if doc_count > 0:
         print(f"Vector store already contains {doc_count} documents. Skipping re-insert.")
     else:
+        text = load_text()
+        chunks = split_into_chunks(text)
         print("Creating Chroma vector store and inserting documents...")
         vector_store.add_documents(chunks)
         print("Documents inserted successfully.")
@@ -89,9 +91,8 @@ Answer:
 # -------------------------------------------------------
 def run_cli():
     
-    text = load_text()
-    chunks = split_into_chunks(text)
-    vector_store = create_vectorstore(chunks)
+    print("Starting the system...")
+    vector_store = create_vectorstore()
 
     print("System ready. Ask questions about the speech.")
     print("Type 'exit' to quit.\n")
@@ -105,7 +106,7 @@ def run_cli():
 
         retrieved_docs = retrieve_chunks(query, vector_store)
         answer = answer_question(query, retrieved_docs)
-        
+
         print("\n--------------------")
         print("\nAssistant:", answer)
         print("\n--------------------")
