@@ -9,6 +9,8 @@ from langchain_ollama import ChatOllama
 # 1. Load Speech Text
 # -------------------------------------------------------
 def load_text(file_path="speech.txt"):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"speech.txt not found in {os.getcwd()}")
     print("Loading speech text...")
     with open(file_path, "r", encoding="utf-8") as f:
         return f.read()
@@ -38,11 +40,14 @@ def create_vectorstore(chunks, persist_dir="chroma_db"):
         persist_directory=persist_dir,
     )
 
-    if vector_store._collection.count() > 0:
-        print("Document already exists")
+    doc_count = vector_store._client.get_collection("ambedkar_speech").count()
+
+    if doc_count > 0:
+        print(f"Vector store already contains {doc_count} documents. Skipping re-insert.")
     else:
-        print("Creating Chroma vector store...")
+        print("Creating Chroma vector store and inserting documents...")
         vector_store.add_documents(chunks)
+        print("Documents inserted successfully.")
 
     return vector_store
 
@@ -64,7 +69,8 @@ def retrieve_chunks(query, vector_store, k=3):
 def answer_question(question, retrieved_docs):
     context = "\n\n".join([doc.page_content for doc in retrieved_docs])
     prompt = f"""
-You are a Q&A assistant. Answer the question only using the provided context.
+You are a Q&A assistant. You MUST answer ONLY using the provided context.
+If something is not present in the context, say "The context does not contain this information."
 
 Context:
 {context}
@@ -84,22 +90,22 @@ Answer:
 def run_cli():
     
     text = load_text()
-
     chunks = split_into_chunks(text)
-
     vector_store = create_vectorstore(chunks)
 
     print("System ready. Ask questions about the speech.")
     print("Type 'exit' to quit.\n")
 
     while True:
-        query = input("You: ")
+        query = input("You: ").strip()
+
         if query.lower() in ["exit", "quit"]:
             print("Exiting cli...")
             break
 
         retrieved_docs = retrieve_chunks(query, vector_store)
         answer = answer_question(query, retrieved_docs)
+        
         print("\n--------------------")
         print("\nAssistant:", answer)
         print("\n--------------------")
